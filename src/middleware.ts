@@ -14,6 +14,7 @@ const PUBLIC_PATHS = [
   '/api/insights',  // Mobile app access
   '/api/advocates', // Mobile app access
   '/api/health',    // Health check endpoint
+  '/api/slack',     // Slack integration
 ];
 
 export async function middleware(request: NextRequest) {
