@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email already exists' }, { status: 409 });
     }
 
-    await col.insertOne(advocate);
+    await col.insertOne(advocate as any);
     return NextResponse.json(advocate, { status: 201 });
   } catch (error) {
     console.error('POST /api/advocates error:', error);
