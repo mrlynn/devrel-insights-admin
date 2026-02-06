@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
         synced: true,
       };
 
-      await col.insertOne(insight);
+      await col.insertOne(insight as any);
       
       // Update event insight count if linked
       if (insight.eventId) {

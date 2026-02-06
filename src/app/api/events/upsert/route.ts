@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
             lastImportedAt: now,
             synced: true,
           };
-          await col.insertOne(newEvent);
+          await col.insertOne(newEvent as any);
           
           // Add to map so subsequent duplicates in same import are detected
           existingByKey.set(key, newEvent);

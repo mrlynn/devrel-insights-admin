@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       expiresAt,
       usedAt: null,
       createdAt: new Date(),
-    });
+    } as any);
 
     // Create TTL index if it doesn't exist
     await db.collection('magic_links').createIndex(

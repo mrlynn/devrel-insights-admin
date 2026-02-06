@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       synced: true,
     };
 
-    await col.insertOne(event);
+    await col.insertOne(event as any);
     return NextResponse.json(event, { status: 201 });
   } catch (error) {
     console.error('POST /api/events error:', error);
