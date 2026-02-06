@@ -4,35 +4,40 @@
 
 import { MongoClient, Db } from 'mongodb';
 
-if (!process.env.MONGODB_URI) {
-  throw new Error('Please add MONGODB_URI to .env.local');
-}
-
-const uri = process.env.MONGODB_URI;
 const dbName = process.env.MONGODB_DB || 'devrel-insights';
 
-let client: MongoClient;
-let clientPromise: Promise<MongoClient>;
+let clientPromise: Promise<MongoClient> | null = null;
 
-if (process.env.NODE_ENV === 'development') {
-  // In development, use a global variable to preserve connection across HMR
-  const globalWithMongo = global as typeof globalThis & {
-    _mongoClientPromise?: Promise<MongoClient>;
-  };
+function getClientPromise(): Promise<MongoClient> {
+  if (clientPromise) return clientPromise;
 
-  if (!globalWithMongo._mongoClientPromise) {
-    client = new MongoClient(uri);
-    globalWithMongo._mongoClientPromise = client.connect();
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error('Please add MONGODB_URI to .env.local');
   }
-  clientPromise = globalWithMongo._mongoClientPromise;
-} else {
-  // In production, create a new client
-  client = new MongoClient(uri);
-  clientPromise = client.connect();
+
+  if (process.env.NODE_ENV === 'development') {
+    // In development, use a global variable to preserve connection across HMR
+    const globalWithMongo = global as typeof globalThis & {
+      _mongoClientPromise?: Promise<MongoClient>;
+    };
+
+    if (!globalWithMongo._mongoClientPromise) {
+      const client = new MongoClient(uri);
+      globalWithMongo._mongoClientPromise = client.connect();
+    }
+    clientPromise = globalWithMongo._mongoClientPromise;
+  } else {
+    // In production, create a new client
+    const client = new MongoClient(uri);
+    clientPromise = client.connect();
+  }
+
+  return clientPromise;
 }
 
 export async function getDb(): Promise<Db> {
-  const client = await clientPromise;
+  const client = await getClientPromise();
   return client.db(dbName);
 }
 
@@ -49,4 +54,4 @@ export const collections = {
   advocates: 'advocates',
 } as const;
 
-export default clientPromise;
+export default getClientPromise;
