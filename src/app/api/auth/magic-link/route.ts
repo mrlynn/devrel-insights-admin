@@ -43,10 +43,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ sent: true });
     }
 
-    // Generate a short-lived, single-use token
-    const token = crypto.randomBytes(32).toString('hex');
+    // Generate a 6-digit verification code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
+    // Store code for verification
+    await db.collection('auth_codes').insertOne({
+      code,
+      email: normalizedEmail,
+      advocateId: advocate?._id || null,
+      userName: advocate?.name || user?.name || normalizedEmail.split('@')[0],
+      userRole: advocate ? 'advocate' : (user?.role || 'user'),
+      isAdmin: advocate?.isAdmin === true || user?.isAdmin === true,
+      expiresAt,
+      usedAt: null,
+      createdAt: new Date(),
+    } as any);
+
+    // Create TTL index if it doesn't exist
+    await db.collection('auth_codes').createIndex(
+      { expiresAt: 1 },
+      { expireAfterSeconds: 0 }
+    ).catch(() => {});
+
+    // Also generate a magic link token for web (backwards compatibility)
+    const token = crypto.randomBytes(32).toString('hex');
     await db.collection('magic_links').insertOne({
       token,
       email: normalizedEmail,
@@ -59,38 +80,39 @@ export async function POST(request: NextRequest) {
       createdAt: new Date(),
     } as any);
 
-    // Create TTL index if it doesn't exist
     await db.collection('magic_links').createIndex(
       { expiresAt: 1 },
       { expireAfterSeconds: 0 }
     ).catch(() => {});
 
-    // Build the magic link URL
+    // Build the magic link URL (for web)
     const proto = request.headers.get('x-forwarded-proto') || 'http';
     const host = request.headers.get('host') || 'localhost:3000';
     const baseUrl = `${proto}://${host}`;
-    
-    // For mobile, append source=mobile to the API URL
-    const magicUrl = isMobile 
-      ? `${baseUrl}/api/auth/magic-link/${token}?source=mobile`
-      : `${baseUrl}/api/auth/magic-link/${token}`;
+    const magicUrl = `${baseUrl}/api/auth/magic-link/${token}`;
     
     const firstName = (advocate?.name || user?.name || '').split(' ')[0] || 'there';
     const appName = isMobile ? 'DevRel Insights Mobile' : 'DevRel Insights Admin';
 
-    // Send the email
+    // Format code with spaces for readability
+    const formattedCode = `${code.slice(0, 3)} ${code.slice(3)}`;
+
+    // Send the email with verification code
     await sendMail({
       to: normalizedEmail,
-      subject: `Your login link for ${appName}`,
+      subject: `${code} is your ${appName} verification code`,
       html: `
         <p>Hi ${firstName},</p>
-        <p>Click here to sign in to ${appName}:</p>
+        <p>Your verification code for ${appName} is:</p>
+        <p style="font-size:32px;font-weight:700;letter-spacing:8px;color:#001E2B;margin:24px 0;">${formattedCode}</p>
+        <p>Enter this code in the app to sign in. It expires in 15 minutes.</p>
+        ${!isMobile ? `
+        <p style="margin-top:24px;padding-top:24px;border-top:1px solid #E3E4E5;">
+          Or click to sign in directly:
+        </p>
         <p><a href="${magicUrl}" style="display:inline-block;padding:12px 24px;background:#00ED64;color:#001E2B;text-decoration:none;border-radius:8px;font-weight:600;">Sign In</a></p>
-        <p>Or copy this link:</p>
-        <p><a href="${magicUrl}">${magicUrl}</a></p>
-        <p>This link expires in 15 minutes.</p>
-        ${isMobile ? '<p><em>Note: After clicking, you may need to open the DevRel Insights app.</em></p>' : ''}
-        <p>— DevRel Insights</p>
+        ` : ''}
+        <p style="margin-top:24px;color:#889397;">— DevRel Insights</p>
       `,
     });
 

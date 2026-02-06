@@ -9,7 +9,7 @@ const SECRET = new TextEncoder().encode(
 
 const PUBLIC_PATHS = [
   '/login', 
-  '/api/auth',
+  '/api/auth',      // All auth routes (magic-link, verify-code)
   '/api/events',    // Mobile app access
   '/api/insights',  // Mobile app access
   '/api/advocates', // Mobile app access
