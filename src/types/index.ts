@@ -1,0 +1,262 @@
+/**
+ * DevRel Insights Admin - Type Definitions
+ * 
+ * Normalized schema for PMO data and insights.
+ */
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+export type EventStatus = 
+  | 'COMPLETED'
+  | 'ASSIGNED'
+  | 'CONFIRMING'
+  | 'CANCELLED'
+  | 'NEEDS_STAFFING'
+  | 'NEW'
+  | 'SA_LED'
+  | 'FYI';
+
+export type EventType =
+  | 'DEV_DAY_1_1'
+  | 'DEV_DAY_REGIONAL'
+  | 'WEBINAR'
+  | 'BUILD_LEARN'
+  | 'OFFICE_HOURS'
+  | 'HACKATHON'
+  | 'ARCHITECT_DAY'
+  | 'VIRTUAL_PRIMER'
+  | 'OTHER';
+
+export type Region = 'AMER' | 'EMEA' | 'APAC' | 'LATAM';
+
+export type AccountSegment =
+  | 'POD'
+  | 'ANCHOR'
+  | 'ASPIRE_POD'
+  | 'KEY_GROWTH'
+  | 'ALL';
+
+export type TravelStatus =
+  | 'READY_TO_BOOK'
+  | 'VIRTUAL_CONFIRMED'
+  | 'DONT_BOOK_YET'
+  | 'NOT_NEEDED'
+  | 'CANCELLED';
+
+export type AssignmentType = 'ON_SITE' | 'REMOTE' | 'VOLUNTEER_TRAVEL';
+
+// ============================================================================
+// EVENT
+// ============================================================================
+
+export interface Assignment {
+  advocateId?: string;
+  advocateName: string;
+  assignmentType: AssignmentType;
+}
+
+export interface Champion {
+  name?: string;
+  title?: string;
+  motivation?: string;
+}
+
+export interface Account {
+  name: string;
+  segment?: AccountSegment;
+  region?: Region;
+}
+
+export interface Event {
+  _id: string;
+  
+  // Core
+  name: string;
+  quarter: string;
+  status: EventStatus;
+  
+  // Dates
+  startDate?: string;
+  endDate?: string;
+  
+  // Location
+  location: string;
+  isVirtual: boolean;
+  timezone?: string;
+  
+  // Type
+  eventType: EventType;
+  
+  // Account
+  account?: Account;
+  isRegional: boolean;
+  
+  // Contacts
+  marketer?: string;
+  champion?: Champion;
+  
+  // Planning
+  calendarEventId?: string;
+  eventPageUrl?: string;
+  agendaDetails?: string;
+  wrikeTicket?: string;
+  sfdcLink?: string;
+  projectTrackerUrl?: string;
+  
+  // Badges
+  badgeJiraTickets?: string[];
+  badgeLinks?: string[];
+  
+  // Logistics
+  language: string;
+  slackChannel?: string;
+  customerTechStack?: string[];
+  travelStatus: TravelStatus;
+  dasNeeded: number;
+  
+  // Assignments
+  assignments: Assignment[];
+  
+  // Notes
+  notes?: string;
+  
+  // Insights (from mobile app)
+  insightCount: number;
+  
+  // Meta
+  createdAt: string;
+  updatedAt: string;
+  importedFrom?: string;
+}
+
+// ============================================================================
+// INSIGHT (from mobile app)
+// ============================================================================
+
+export type InsightType = 
+  | 'Pain Point'
+  | 'Feature Request'
+  | 'Praise'
+  | 'Question'
+  | 'Use Case'
+  | 'Competition'
+  | 'Documentation'
+  | 'Other';
+
+export type ProductArea =
+  | 'Atlas'
+  | 'Atlas Search'
+  | 'Atlas Vector Search'
+  | 'Atlas Stream Processing'
+  | 'Atlas Data Federation'
+  | 'Atlas Device Sync'
+  | 'Charts'
+  | 'Compass'
+  | 'Driver'
+  | 'Server'
+  | 'Aggregation'
+  | 'Atlas Triggers'
+  | 'Atlas Functions'
+  | 'Data API'
+  | 'App Services'
+  | 'Other';
+
+export type Sentiment = 'Positive' | 'Neutral' | 'Negative';
+
+export type Priority = 'Low' | 'Medium' | 'High' | 'Critical';
+
+export interface Insight {
+  _id: string;
+  
+  // Core
+  type: InsightType;
+  productAreas: ProductArea[];
+  text: string;
+  sentiment: Sentiment;
+  priority: Priority;
+  tags: string[];
+  
+  // Context
+  eventId?: string;
+  sessionId?: string;
+  eventName?: string;
+  sessionTitle?: string;
+  
+  eventContext?: {
+    region?: Region;
+    accountSegment?: string;
+    engagementType?: EventType;
+    technicalTheme?: string;
+  };
+  
+  developerProfile?: Record<string, any>;
+  
+  // Attachments
+  attachments: Array<{
+    _id: string;
+    uri: string;
+    type: 'image' | 'file';
+    caption?: string;
+    uploadedAt: string;
+    synced: boolean;
+  }>;
+  
+  // Attribution
+  advocateId: string;
+  advocateName: string;
+  
+  // Social
+  upvotes: string[];
+  annotations: Array<{
+    _id: string;
+    advocateId: string;
+    advocateName: string;
+    text: string;
+    createdAt: string;
+  }>;
+  
+  // Timestamps
+  capturedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  synced: boolean;
+}
+
+// ============================================================================
+// ADVOCATE
+// ============================================================================
+
+export interface Advocate {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  region: Region;
+  isAdmin: boolean;
+  
+  // Stats
+  insightCount?: number;
+  eventCount?: number;
+  
+  // Meta
+  lastAccessAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================================
+// USER (for auth)
+// ============================================================================
+
+export interface User {
+  _id: string;
+  email: string;
+  name: string;
+  password?: string; // hashed
+  role: 'admin' | 'advocate' | 'user';
+  isAdmin: boolean;
+  advocateId?: string;
+  createdAt: string;
+}
