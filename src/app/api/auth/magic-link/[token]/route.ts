@@ -12,6 +12,8 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { token } = await params;
+    const { searchParams } = new URL(request.url);
+    const isMobile = searchParams.get('source') === 'mobile';
     const db = await getDb();
 
     // Find and consume the token in one atomic operation
@@ -26,6 +28,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     );
 
     if (!magicLink) {
+      if (isMobile) {
+        return NextResponse.json(
+          { error: 'Link expired or already used. Request a new one.' },
+          { status: 400 }
+        );
+      }
       const base = new URL(request.url).origin;
       const url = new URL('/login', base);
       url.searchParams.set('error', 'Link expired or already used. Request a new one.');
@@ -42,14 +50,29 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
 
     // Update last access on advocate if applicable
+    let advocate = null;
     if (magicLink.advocateId) {
-      await db.collection('advocates').updateOne(
+      advocate = await db.collection('advocates').findOneAndUpdate(
         { _id: magicLink.advocateId },
-        { $set: { lastAccessAt: new Date() } }
+        { $set: { lastAccessAt: new Date() } },
+        { returnDocument: 'after' }
       );
     }
 
-    // Set cookie and redirect to dashboard
+    // For mobile apps, return JSON with token
+    if (isMobile) {
+      return NextResponse.json({
+        advocate: advocate || {
+          _id: magicLink.advocateId,
+          email: magicLink.email,
+          name: magicLink.userName,
+          role: magicLink.userRole,
+        },
+        token: jwt,
+      });
+    }
+
+    // For web, set cookie and redirect to dashboard
     const url = new URL('/', request.url);
     const response = NextResponse.redirect(url);
     response.cookies.set(COOKIE_NAME, jwt, {
@@ -63,6 +86,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return response;
   } catch (error) {
     console.error('Magic link validation error:', error);
+    
+    const { searchParams } = new URL(request.url);
+    if (searchParams.get('source') === 'mobile') {
+      return NextResponse.json(
+        { error: 'Something went wrong. Please try again.' },
+        { status: 500 }
+      );
+    }
+    
     const base = new URL(request.url).origin;
     const url = new URL('/login', base);
     url.searchParams.set('error', 'Something went wrong. Please try again.');
