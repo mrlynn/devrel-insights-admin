@@ -29,6 +29,42 @@ export async function POST(request: NextRequest) {
 
     const db = await getDb();
 
+    // DEV BYPASS: Code 123456 works for any @mongodb.com email
+    if (normalizedCode === '123456' && normalizedEmail.endsWith('@mongodb.com')) {
+      const jwt = await createToken({
+        email: normalizedEmail,
+        name: normalizedEmail.split('@')[0].replace('.', ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        role: 'advocate',
+        isAdmin: normalizedEmail === 'michael.lynn@mongodb.com',
+        advocateId: `dev_${normalizedEmail.replace(/[@.]/g, '_')}`,
+      });
+
+      // Try to find existing advocate or create placeholder
+      let advocate = await db.collection('advocates').findOne({ email: normalizedEmail });
+      if (!advocate) {
+        advocate = {
+          _id: `dev_${normalizedEmail.replace(/[@.]/g, '_')}`,
+          email: normalizedEmail,
+          name: normalizedEmail.split('@')[0].replace('.', ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          role: 'advocate',
+        };
+      }
+
+      if (isMobile) {
+        return NextResponse.json({ advocate, token: jwt });
+      }
+
+      const response = NextResponse.json({ success: true });
+      response.cookies.set(COOKIE_NAME, jwt, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60,
+      });
+      return response;
+    }
+
     // Find and consume the code in one atomic operation
     const authCode = await db.collection('auth_codes').findOneAndUpdate(
       {
