@@ -13,6 +13,7 @@ const PUBLIC_PATHS = [
   '/api/events',    // Mobile app access
   '/api/insights',  // Mobile app access
   '/api/advocates', // Mobile app access
+  '/api/health',    // Health check endpoint
 ];
 
 export async function middleware(request: NextRequest) {
