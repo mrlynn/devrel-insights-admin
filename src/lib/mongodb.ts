@@ -52,6 +52,19 @@ export const collections = {
   events: 'events',
   sessions: 'sessions',
   advocates: 'advocates',
+  reactions: 'reactions',
 } as const;
+
+// Reaction types (LinkedIn-style)
+export const REACTION_TYPES = ['like', 'love', 'insightful', 'celebrate', 'fire'] as const;
+export type ReactionType = typeof REACTION_TYPES[number];
+
+export const REACTION_EMOJI: Record<ReactionType, string> = {
+  like: '👍',
+  love: '❤️',
+  insightful: '💡',
+  celebrate: '👏',
+  fire: '🔥',
+};
 
 export default getClientPromise;
