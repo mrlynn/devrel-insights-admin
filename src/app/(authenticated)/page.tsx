@@ -255,13 +255,84 @@ export default function DashboardPage() {
   };
 
   const downloadPDF = () => {
-    if (!aiSummary) return;
+    if (!aiSummary || !data) return;
 
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
     const margin = 20;
     const contentWidth = pageWidth - margin * 2;
     let yPos = margin;
+
+    // Helper to draw a pie chart
+    const drawPieChart = (centerX: number, centerY: number, radius: number, slices: Array<{value: number, color: [number, number, number], label: string}>) => {
+      const total = slices.reduce((sum, s) => sum + s.value, 0);
+      if (total === 0) return;
+      
+      let startAngle = -Math.PI / 2;
+      slices.forEach((slice) => {
+        const sliceAngle = (slice.value / total) * 2 * Math.PI;
+        const endAngle = startAngle + sliceAngle;
+        
+        // Draw slice
+        pdf.setFillColor(...slice.color);
+        
+        // Create pie slice path
+        const steps = 30;
+        const points: [number, number][] = [[centerX, centerY]];
+        for (let i = 0; i <= steps; i++) {
+          const angle = startAngle + (sliceAngle * i / steps);
+          points.push([
+            centerX + radius * Math.cos(angle),
+            centerY + radius * Math.sin(angle)
+          ]);
+        }
+        
+        // Draw as polygon
+        pdf.setDrawColor(255, 255, 255);
+        pdf.setLineWidth(0.5);
+        
+        // Use triangle fan approach
+        for (let i = 1; i < points.length - 1; i++) {
+          pdf.triangle(
+            points[0][0], points[0][1],
+            points[i][0], points[i][1],
+            points[i + 1][0], points[i + 1][1],
+            'F'
+          );
+        }
+        
+        startAngle = endAngle;
+      });
+    };
+
+    // Helper to draw horizontal bar chart
+    const drawBarChart = (x: number, y: number, width: number, items: Array<{label: string, value: number, color: [number, number, number]}>) => {
+      const maxValue = Math.max(...items.map(i => i.value), 1);
+      const barHeight = 6;
+      const gap = 8;
+      
+      items.forEach((item, idx) => {
+        const barY = y + idx * (barHeight + gap);
+        const barWidth = (item.value / maxValue) * (width - 40);
+        
+        // Label
+        pdf.setFontSize(8);
+        pdf.setTextColor(60, 60, 60);
+        pdf.text(item.label.slice(0, 15), x, barY + 4);
+        
+        // Bar
+        pdf.setFillColor(...item.color);
+        pdf.roundedRect(x + 42, barY, barWidth, barHeight, 1, 1, 'F');
+        
+        // Value
+        pdf.setFontSize(7);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(String(item.value), x + 44 + barWidth + 2, barY + 4);
+      });
+      
+      return items.length * (barHeight + gap);
+    };
 
     // MongoDB green header bar
     pdf.setFillColor(0, 237, 100);
@@ -282,16 +353,82 @@ export default function DashboardPage() {
     pdf.text(`${aiSummary.period} Report`, margin, yPos);
     pdf.text(`Generated: ${new Date(aiSummary.generatedAt).toLocaleDateString()}`, pageWidth - margin - 50, yPos);
     
-    yPos += 10;
+    yPos += 12;
 
-    // Stats bar
-    pdf.setFillColor(245, 245, 245);
-    pdf.rect(margin, yPos, contentWidth, 12, 'F');
-    pdf.setFontSize(10);
-    pdf.setTextColor(60, 60, 60);
-    pdf.text(`${aiSummary.stats.total} Insights  •  ${aiSummary.stats.events} Events  •  ${aiSummary.stats.advocates} Advocates`, margin + 5, yPos + 8);
+    // Stats boxes
+    const boxWidth = (contentWidth - 10) / 3;
+    const statsData = [
+      { label: 'Insights', value: aiSummary.stats.total, color: [0, 237, 100] as [number, number, number] },
+      { label: 'Events', value: aiSummary.stats.events, color: [1, 107, 248] as [number, number, number] },
+      { label: 'Advocates', value: aiSummary.stats.advocates, color: [124, 58, 237] as [number, number, number] },
+    ];
     
-    yPos += 20;
+    statsData.forEach((stat, idx) => {
+      const boxX = margin + idx * (boxWidth + 5);
+      pdf.setFillColor(250, 250, 250);
+      pdf.roundedRect(boxX, yPos, boxWidth, 18, 2, 2, 'F');
+      pdf.setFillColor(...stat.color);
+      pdf.rect(boxX, yPos, 3, 18, 'F');
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(...stat.color);
+      pdf.text(String(stat.value), boxX + 8, yPos + 12);
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(stat.label, boxX + 28, yPos + 12);
+    });
+    
+    yPos += 28;
+
+    // Charts section
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(0, 30, 43);
+    pdf.text('Insights Overview', margin, yPos);
+    yPos += 8;
+
+    // Sentiment pie chart
+    const sentimentData = data.charts.sentiment;
+    const sentimentColors: Record<string, [number, number, number]> = {
+      Positive: [0, 237, 100],
+      Neutral: [1, 107, 248],
+      Negative: [239, 68, 68],
+    };
+    
+    const pieSlices = sentimentData.map(s => ({
+      value: s.value,
+      color: sentimentColors[s.name] || [150, 150, 150],
+      label: s.name,
+    }));
+    
+    drawPieChart(margin + 25, yPos + 25, 20, pieSlices);
+    
+    // Pie legend
+    let legendY = yPos + 8;
+    pdf.setFontSize(8);
+    pieSlices.forEach((slice) => {
+      pdf.setFillColor(...slice.color);
+      pdf.rect(margin + 50, legendY - 3, 4, 4, 'F');
+      pdf.setTextColor(60, 60, 60);
+      pdf.text(`${slice.label}: ${slice.value}`, margin + 56, legendY);
+      legendY += 7;
+    });
+
+    // Insight types bar chart
+    const typesData = data.charts.types.slice(0, 5);
+    const typeColors: [number, number, number][] = [
+      [0, 237, 100], [1, 107, 248], [124, 58, 237], [20, 184, 166], [255, 192, 16]
+    ];
+    
+    const barItems = typesData.map((t, i) => ({
+      label: t.name,
+      value: t.value,
+      color: typeColors[i % typeColors.length],
+    }));
+    
+    drawBarChart(margin + 85, yPos, 85, barItems);
+    
+    yPos += 55;
 
     // Key Themes
     if (aiSummary.themes && aiSummary.themes.length > 0) {
@@ -303,32 +440,41 @@ export default function DashboardPage() {
       
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(80, 80, 80);
+      
+      // Draw themes as chips
+      let chipX = margin;
       aiSummary.themes.forEach((theme) => {
-        pdf.text(`• ${theme}`, margin + 5, yPos);
-        yPos += 5;
+        const chipWidth = pdf.getTextWidth(theme) + 8;
+        if (chipX + chipWidth > pageWidth - margin) {
+          chipX = margin;
+          yPos += 8;
+        }
+        pdf.setFillColor(240, 230, 255);
+        pdf.roundedRect(chipX, yPos - 4, chipWidth, 7, 2, 2, 'F');
+        pdf.setTextColor(124, 58, 237);
+        pdf.setFontSize(8);
+        pdf.text(theme, chipX + 4, yPos);
+        chipX += chipWidth + 3;
       });
-      yPos += 8;
+      yPos += 12;
     }
 
     // Summary content
     pdf.setFontSize(12);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(0, 30, 43);
-    pdf.text('Summary', margin, yPos);
+    pdf.text('Executive Summary', margin, yPos);
     yPos += 8;
 
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(40, 40, 40);
     
-    // Split summary into lines that fit the page width
     const lines = pdf.splitTextToSize(aiSummary.summary, contentWidth);
     const lineHeight = 5;
-    const pageHeight = pdf.internal.pageSize.getHeight();
     
     lines.forEach((line: string) => {
-      if (yPos > pageHeight - margin) {
+      if (yPos > pageHeight - margin - 15) {
         pdf.addPage();
         yPos = margin;
       }
@@ -336,11 +482,10 @@ export default function DashboardPage() {
       yPos += lineHeight;
     });
 
-    // Footer
-    yPos = pageHeight - 15;
+    // Footer on last page
     pdf.setFontSize(8);
     pdf.setTextColor(150, 150, 150);
-    pdf.text('MongoDB Developer Relations  •  devrel-insights-admin.vercel.app', margin, yPos);
+    pdf.text('MongoDB Developer Relations  •  devrel-insights-admin.vercel.app', margin, pageHeight - 10);
 
     // Download
     const filename = `devrel-insights-${aiSummary.period.toLowerCase().replace(' ', '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
