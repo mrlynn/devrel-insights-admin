@@ -39,11 +39,6 @@ import {
   Edit,
   Delete,
   Refresh,
-  CheckCircle,
-  Warning,
-  Error as ErrorIcon,
-  Schedule,
-  Block,
   PhoneIphone,
 } from '@mui/icons-material';
 
@@ -67,12 +62,12 @@ interface Bug {
   resolvedAt?: string;
 }
 
-const STATUS_CONFIG: Record<BugStatus, { label: string; color: 'default' | 'info' | 'success' | 'warning' | 'error'; icon: React.ReactNode }> = {
-  open: { label: 'Open', color: 'error', icon: <ErrorIcon fontSize="small" /> },
-  in_progress: { label: 'In Progress', color: 'info', icon: <Schedule fontSize="small" /> },
-  resolved: { label: 'Resolved', color: 'success', icon: <CheckCircle fontSize="small" /> },
-  closed: { label: 'Closed', color: 'default', icon: <CheckCircle fontSize="small" /> },
-  wont_fix: { label: "Won't Fix", color: 'warning', icon: <Block fontSize="small" /> },
+const STATUS_CONFIG: Record<BugStatus, { label: string; color: 'default' | 'info' | 'success' | 'warning' | 'error' }> = {
+  open: { label: 'Open', color: 'error' },
+  in_progress: { label: 'In Progress', color: 'info' },
+  resolved: { label: 'Resolved', color: 'success' },
+  closed: { label: 'Closed', color: 'default' },
+  wont_fix: { label: "Won't Fix", color: 'warning' },
 };
 
 const PRIORITY_CONFIG: Record<BugPriority, { label: string; color: 'default' | 'info' | 'warning' | 'error' }> = {
@@ -311,7 +306,6 @@ export default function BugsPage() {
                     </TableCell>
                     <TableCell>
                       <Chip
-                        icon={STATUS_CONFIG[bug.status].icon}
                         label={STATUS_CONFIG[bug.status].label}
                         size="small"
                         color={STATUS_CONFIG[bug.status].color}
