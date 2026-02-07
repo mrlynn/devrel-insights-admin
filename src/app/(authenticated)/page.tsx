@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Box,
   Grid,
@@ -22,6 +23,16 @@ import {
   IconButton,
   Tooltip as MuiTooltip,
 } from '@mui/material';
+
+// Dynamic import for Leaflet (no SSR)
+const EventMap = dynamic(() => import('@/components/EventMap'), {
+  ssr: false,
+  loading: () => (
+    <Box sx={{ height: 350, bgcolor: 'background.default', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Typography color="text.secondary">Loading map...</Typography>
+    </Box>
+  ),
+});
 import {
   TrendingUp,
   TrendingDown,
@@ -962,6 +973,19 @@ export default function DashboardPage() {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Event Map */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <Event sx={{ color: COLORS.secondary }} />
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Event Locations
+            </Typography>
+          </Box>
+          <EventMap height={350} />
+        </CardContent>
+      </Card>
 
       {/* Critical Items */}
       {data.lists.criticalItems.length > 0 && (
