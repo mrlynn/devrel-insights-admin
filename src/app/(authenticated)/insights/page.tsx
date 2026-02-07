@@ -50,6 +50,22 @@ import {
 } from '@mui/icons-material';
 import InsightFormDialog, { InsightFormData } from '@/components/InsightFormDialog';
 
+interface ReactionCounts {
+  like?: number;
+  love?: number;
+  insightful?: number;
+  celebrate?: number;
+  fire?: number;
+}
+
+const REACTION_EMOJI: Record<string, string> = {
+  like: '👍',
+  love: '❤️',
+  insightful: '💡',
+  celebrate: '🎉',
+  fire: '🔥',
+};
+
 interface Insight {
   _id: string;
   type: string;
@@ -64,6 +80,8 @@ interface Insight {
   advocateId?: string;
   followUpRequired?: boolean;
   capturedAt: string;
+  reactionCounts?: ReactionCounts;
+  reactionTotal?: number;
 }
 
 interface Event {
@@ -77,6 +95,38 @@ const priorityColors: Record<string, 'default' | 'info' | 'warning' | 'error'> =
   'High': 'warning',
   'Critical': 'error',
 };
+
+// Reaction display component
+function ReactionDisplay({ counts, total }: { counts?: ReactionCounts; total?: number }) {
+  if (!counts || !total || total === 0) return null;
+  
+  const activeReactions = Object.entries(counts)
+    .filter(([_, count]) => count && count > 0)
+    .sort((a, b) => (b[1] || 0) - (a[1] || 0));
+  
+  if (activeReactions.length === 0) return null;
+
+  return (
+    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml: 1 }}>
+      <Stack direction="row" spacing={-0.5}>
+        {activeReactions.slice(0, 3).map(([type]) => (
+          <Box
+            key={type}
+            sx={{
+              fontSize: '0.85rem',
+              lineHeight: 1,
+            }}
+          >
+            {REACTION_EMOJI[type]}
+          </Box>
+        ))}
+      </Stack>
+      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+        {total}
+      </Typography>
+    </Stack>
+  );
+}
 
 export default function InsightsPage() {
   const [insights, setInsights] = useState<Insight[]>([]);
@@ -394,6 +444,7 @@ export default function InsightsPage() {
                   <TableCell>Event</TableCell>
                   <TableCell>Advocate</TableCell>
                   <TableCell>Date</TableCell>
+                  <TableCell>Reactions</TableCell>
                   <TableCell width={100}>Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -447,6 +498,9 @@ export default function InsightsPage() {
                       <Typography variant="body2" color="text.secondary">
                         {new Date(insight.capturedAt).toLocaleDateString()}
                       </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <ReactionDisplay counts={insight.reactionCounts} total={insight.reactionTotal} />
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Stack direction="row" spacing={0}>
@@ -502,8 +556,8 @@ export default function InsightsPage() {
                   onClick={() => handleEdit(insight)}
                 >
                   <CardContent sx={{ flex: 1 }}>
-                    {/* Header: Sentiment + Type + Priority */}
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                    {/* Header: Sentiment + Type + Priority + Reactions */}
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2, flexWrap: 'wrap' }}>
                       {getSentimentIcon(insight.sentiment)}
                       <Chip label={insight.type} size="small" />
                       <Chip
@@ -511,6 +565,8 @@ export default function InsightsPage() {
                         size="small"
                         color={priorityColors[insight.priority] || 'default'}
                       />
+                      <Box sx={{ flex: 1 }} />
+                      <ReactionDisplay counts={insight.reactionCounts} total={insight.reactionTotal} />
                     </Stack>
 
                     {/* Text */}
