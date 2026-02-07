@@ -29,6 +29,8 @@ import {
   Upload as ImportIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon,
+  PhoneIphone as PhoneIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
 import { mongoColors } from '@/theme';
 
@@ -134,6 +136,44 @@ export default function AdminLayout({ children }: Props) {
           )
         )}
       </List>
+
+      {/* Mobile App Banner */}
+      <Box
+        sx={{
+          mx: 2,
+          mb: 2,
+          p: 2,
+          borderRadius: 2,
+          background: `linear-gradient(135deg, ${mongoColors.green}15 0%, ${mongoColors.darkGreen}10 100%)`,
+          border: `1px solid ${mongoColors.green}30`,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <PhoneIcon sx={{ color: mongoColors.darkGreen, fontSize: 20 }} />
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: mongoColors.darkGreen }}>
+            Get the Mobile App
+          </Typography>
+        </Box>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+          Capture insights at conferences with our iOS app.
+        </Typography>
+        <Button
+          fullWidth
+          variant="contained"
+          size="small"
+          endIcon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
+          href="https://testflight.apple.com/join/rAqHXs1Y"
+          target="_blank"
+          sx={{
+            bgcolor: mongoColors.darkGreen,
+            '&:hover': { bgcolor: mongoColors.green, color: mongoColors.black },
+            textTransform: 'none',
+            fontWeight: 600,
+          }}
+        >
+          Join TestFlight Beta
+        </Button>
+      </Box>
 
       {/* Footer with Logout */}
       <Box sx={{ p: 2, borderTop: `1px solid ${mongoColors.gray[200]}` }}>
