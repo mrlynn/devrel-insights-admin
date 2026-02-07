@@ -229,26 +229,59 @@ function stringToColor(str: string): string {
   return CHART_COLORS[Math.abs(hash) % CHART_COLORS.length];
 }
 
+interface CachedSummary extends AISummary {
+  ageText?: string;
+  ageMs?: number;
+  fromCache?: boolean;
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [aiSummary, setAiSummary] = useState<AISummary | null>(null);
+  const [aiSummary, setAiSummary] = useState<CachedSummary | null>(null);
+  const [cachedSummary, setCachedSummary] = useState<CachedSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryPeriod, setSummaryPeriod] = useState<string>('quarter');
   const [copied, setCopied] = useState(false);
   const theme = useTheme();
 
-  const generateSummary = async () => {
+  // Check for cached summary when period changes
+  useEffect(() => {
+    async function checkCache() {
+      try {
+        const res = await fetch(`/api/insights/summary?period=${summaryPeriod}`);
+        if (res.ok) {
+          const { cached } = await res.json();
+          setCachedSummary(cached);
+        }
+      } catch (err) {
+        console.error('Failed to check cache:', err);
+      }
+    }
+    checkCache();
+  }, [summaryPeriod]);
+
+  const loadCachedSummary = () => {
+    if (cachedSummary) {
+      setAiSummary({ ...cachedSummary, fromCache: true });
+    }
+  };
+
+  const generateSummary = async (forceNew = false) => {
     setSummaryLoading(true);
     try {
       const res = await fetch('/api/insights/summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ period: summaryPeriod }),
+        body: JSON.stringify({ period: summaryPeriod, forceNew }),
       });
       if (res.ok) {
         const json = await res.json();
         setAiSummary(json);
+        // Update cache reference
+        if (!json.fromCache) {
+          setCachedSummary({ ...json, ageText: 'just now', ageMs: 0 });
+        }
       }
     } catch (err) {
       console.error('Failed to generate summary:', err);
@@ -621,7 +654,7 @@ export default function DashboardPage() {
                 AI Executive Summary
               </Typography>
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
               <ToggleButtonGroup
                 value={summaryPeriod}
                 exclusive
@@ -632,15 +665,27 @@ export default function DashboardPage() {
                 <ToggleButton value="month">Month</ToggleButton>
                 <ToggleButton value="quarter">Quarter</ToggleButton>
               </ToggleButtonGroup>
-              <Button
-                variant="contained"
-                onClick={generateSummary}
-                disabled={summaryLoading}
-                startIcon={summaryLoading ? <CircularProgress size={18} color="inherit" /> : <AutoAwesome />}
-                sx={{ bgcolor: COLORS.purple, '&:hover': { bgcolor: alpha(COLORS.purple, 0.85) } }}
-              >
-                {summaryLoading ? 'Generating...' : 'Generate Summary'}
-              </Button>
+              <Stack direction="row" spacing={1}>
+                {cachedSummary && !aiSummary && (
+                  <Button
+                    variant="outlined"
+                    onClick={loadCachedSummary}
+                    size="small"
+                    sx={{ borderColor: COLORS.purple, color: COLORS.purple }}
+                  >
+                    Load Cached ({cachedSummary.ageText})
+                  </Button>
+                )}
+                <Button
+                  variant="contained"
+                  onClick={() => generateSummary(!!aiSummary)}
+                  disabled={summaryLoading}
+                  startIcon={summaryLoading ? <CircularProgress size={18} color="inherit" /> : <AutoAwesome />}
+                  sx={{ bgcolor: COLORS.purple, '&:hover': { bgcolor: alpha(COLORS.purple, 0.85) } }}
+                >
+                  {summaryLoading ? 'Generating...' : aiSummary ? 'Regenerate' : 'Generate Summary'}
+                </Button>
+              </Stack>
             </Box>
           </Box>
 
@@ -694,10 +739,18 @@ export default function DashboardPage() {
 
               {/* Stats Footer */}
               <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                <Stack direction="row" spacing={2}>
+                <Stack direction="row" spacing={2} alignItems="center">
                   <Typography variant="caption" color="text.secondary">
                     Based on <strong>{aiSummary.stats.total}</strong> insights from <strong>{aiSummary.stats.events}</strong> events
                   </Typography>
+                  {aiSummary.fromCache && (
+                    <Chip 
+                      label="From Cache" 
+                      size="small" 
+                      variant="outlined"
+                      sx={{ fontSize: '0.7rem', height: 20 }}
+                    />
+                  )}
                 </Stack>
                 <Typography variant="caption" color="text.secondary">
                   Generated: {new Date(aiSummary.generatedAt).toLocaleString()}
@@ -706,12 +759,39 @@ export default function DashboardPage() {
             </Box>
           ) : (
             <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Typography color="text.secondary">
-                Click "Generate Summary" to create an AI-powered executive brief from your insights data.
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                Perfect for quarterly reviews, stakeholder updates, and CMO reporting.
-              </Typography>
+              {cachedSummary ? (
+                <>
+                  <Typography color="text.secondary" gutterBottom>
+                    A cached summary is available from {cachedSummary.ageText}.
+                  </Typography>
+                  <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 2 }}>
+                    <Button
+                      variant="outlined"
+                      onClick={loadCachedSummary}
+                      sx={{ borderColor: COLORS.purple, color: COLORS.purple }}
+                    >
+                      Load Cached Summary
+                    </Button>
+                    <Button
+                      variant="contained"
+                      onClick={() => generateSummary(true)}
+                      startIcon={<AutoAwesome />}
+                      sx={{ bgcolor: COLORS.purple, '&:hover': { bgcolor: alpha(COLORS.purple, 0.85) } }}
+                    >
+                      Generate Fresh
+                    </Button>
+                  </Stack>
+                </>
+              ) : (
+                <>
+                  <Typography color="text.secondary">
+                    Click "Generate Summary" to create an AI-powered executive brief from your insights data.
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    Perfect for quarterly reviews, stakeholder updates, and CMO reporting.
+                  </Typography>
+                </>
+              )}
             </Box>
           )}
         </CardContent>

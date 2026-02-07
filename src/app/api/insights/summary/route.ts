@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCollection, collections } from '@/lib/mongodb';
+import { getCollection, collections, getDb } from '@/lib/mongodb';
 import OpenAI from 'openai';
 
 export const dynamic = 'force-dynamic';
@@ -8,10 +8,72 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// GET /api/insights/summary - Get cached summary
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const period = searchParams.get('period') || 'quarter';
+
+    const db = await getDb();
+    const cached = await db.collection('summaries').findOne(
+      { period },
+      { sort: { generatedAt: -1 } }
+    );
+
+    if (!cached) {
+      return NextResponse.json({ cached: null });
+    }
+
+    // Calculate age
+    const ageMs = Date.now() - new Date(cached.generatedAt).getTime();
+    const ageHours = Math.floor(ageMs / (1000 * 60 * 60));
+    const ageDays = Math.floor(ageHours / 24);
+
+    let ageText: string;
+    if (ageDays > 0) {
+      ageText = `${ageDays} day${ageDays > 1 ? 's' : ''} ago`;
+    } else if (ageHours > 0) {
+      ageText = `${ageHours} hour${ageHours > 1 ? 's' : ''} ago`;
+    } else {
+      const ageMinutes = Math.floor(ageMs / (1000 * 60));
+      ageText = `${ageMinutes} minute${ageMinutes !== 1 ? 's' : ''} ago`;
+    }
+
+    return NextResponse.json({
+      cached: {
+        ...cached,
+        ageText,
+        ageMs,
+      },
+    });
+  } catch (error) {
+    console.error('GET /api/insights/summary error:', error);
+    return NextResponse.json({ error: 'Failed to fetch cached summary' }, { status: 500 });
+  }
+}
+
 // POST /api/insights/summary - Generate AI executive summary
 export async function POST(request: NextRequest) {
   try {
-    const { period = 'quarter' } = await request.json().catch(() => ({}));
+    const { period = 'quarter', forceNew = false } = await request.json().catch(() => ({}));
+
+    const db = await getDb();
+
+    // Check for recent cache (less than 1 hour old) unless forcing new
+    if (!forceNew) {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const recentCache = await db.collection('summaries').findOne({
+        period,
+        generatedAt: { $gte: oneHourAgo },
+      });
+
+      if (recentCache) {
+        return NextResponse.json({
+          ...recentCache,
+          fromCache: true,
+        });
+      }
+    }
 
     // Calculate date range
     const now = new Date();
@@ -162,7 +224,8 @@ Pain Points: ${painPoints.slice(0, 5).join(' | ')}`;
       .filter((t) => t.trim())
       .slice(0, 5);
 
-    return NextResponse.json({
+    // Build the response object
+    const responseData = {
       summary,
       themes,
       stats: {
@@ -178,7 +241,30 @@ Pain Points: ${painPoints.slice(0, 5).join(' | ')}`;
       },
       period: periodLabel,
       generatedAt: now.toISOString(),
+      fromCache: false,
+    };
+
+    // Save to cache
+    await db.collection('summaries').insertOne({
+      ...responseData,
+      period,
+      createdAt: now,
     });
+
+    // Clean up old summaries (keep last 10 per period)
+    const oldSummaries = await db.collection('summaries')
+      .find({ period })
+      .sort({ generatedAt: -1 })
+      .skip(10)
+      .toArray();
+    
+    if (oldSummaries.length > 0) {
+      await db.collection('summaries').deleteMany({
+        _id: { $in: oldSummaries.map((s) => s._id) },
+      });
+    }
+
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error('Summary generation error:', error);
     return NextResponse.json(
