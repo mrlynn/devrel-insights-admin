@@ -53,7 +53,15 @@ export const collections = {
   sessions: 'sessions',
   advocates: 'advocates',
   reactions: 'reactions',
+  bugs: 'bugs',
 } as const;
+
+// Bug status types
+export const BUG_STATUSES = ['open', 'in_progress', 'resolved', 'closed', 'wont_fix'] as const;
+export type BugStatus = typeof BUG_STATUSES[number];
+
+export const BUG_PRIORITIES = ['low', 'medium', 'high', 'critical'] as const;
+export type BugPriority = typeof BUG_PRIORITIES[number];
 
 // Reaction types (LinkedIn-style)
 export const REACTION_TYPES = ['like', 'love', 'insightful', 'celebrate', 'fire'] as const;

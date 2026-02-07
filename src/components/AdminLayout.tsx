@@ -32,6 +32,7 @@ import {
   Logout as LogoutIcon,
   PhoneIphone as PhoneIcon,
   OpenInNew as OpenInNewIcon,
+  BugReport as BugReportIcon,
 } from '@mui/icons-material';
 import { mongoColors } from '@/theme';
 
@@ -46,6 +47,7 @@ const navItems = [
   { label: 'Leaderboard', href: '/advocates/leaderboard', icon: <EmojiEventsIcon /> },
   { label: 'Analytics', href: '/analytics', icon: <AnalyticsIcon /> },
   { divider: true },
+  { label: 'Bug Reports', href: '/bugs', icon: <BugReportIcon /> },
   { label: 'PMO Import', href: '/import', icon: <ImportIcon /> },
   { label: 'Settings', href: '/settings', icon: <SettingsIcon /> },
 ];
