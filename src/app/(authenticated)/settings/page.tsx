@@ -187,6 +187,9 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Slack Integration */}
+      <SlackSettings />
+
       {/* Export/Import */}
       <Card sx={{ mt: 3 }}>
         <CardContent>
@@ -201,5 +204,95 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
     </Box>
+  );
+}
+
+function SlackSettings() {
+  const [configured, setConfigured] = useState(false);
+  const [digestPreview, setDigestPreview] = useState<any>(null);
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/slack/digest')
+      .then((res) => res.json())
+      .then((data) => {
+        setConfigured(data.configured);
+        setDigestPreview(data.preview);
+      })
+      .catch(console.error);
+  }, []);
+
+  const handleSendDigest = async () => {
+    setSending(true);
+    setResult(null);
+    try {
+      const res = await fetch('/api/slack/digest', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        setResult({ success: true, message: `Digest sent! ${data.insightCount} insights summarized.` });
+      } else {
+        setResult({ success: false, message: data.error || 'Failed to send' });
+      }
+    } catch (err) {
+      setResult({ success: false, message: 'Network error' });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Card sx={{ mt: 3 }}>
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          Slack Integration
+        </Typography>
+        
+        {!configured ? (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Slack webhook not configured. Set SLACK_WEBHOOK_URL in your environment variables.
+          </Alert>
+        ) : (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            Slack webhook configured and ready.
+          </Alert>
+        )}
+
+        {digestPreview && (
+          <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Weekly Digest Preview
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {digestPreview.insightCount} insights from the past week
+              {digestPreview.insightCount > 0 && (
+                <> • 😊 {digestPreview.sentiment.positive} positive, 
+                😐 {digestPreview.sentiment.neutral} neutral, 
+                😟 {digestPreview.sentiment.negative} negative</>
+              )}
+            </Typography>
+          </Box>
+        )}
+
+        {result && (
+          <Alert severity={result.success ? 'success' : 'error'} sx={{ mb: 2 }}>
+            {result.message}
+          </Alert>
+        )}
+
+        <Stack direction="row" spacing={2}>
+          <Button
+            variant="contained"
+            onClick={handleSendDigest}
+            disabled={!configured || sending}
+          >
+            {sending ? 'Sending...' : 'Send Weekly Digest Now'}
+          </Button>
+          <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>
+            Tip: Set up a cron job to call POST /api/slack/digest weekly
+          </Typography>
+        </Stack>
+      </CardContent>
+    </Card>
   );
 }
