@@ -33,6 +33,7 @@ import {
   PhoneIphone as PhoneIcon,
   OpenInNew as OpenInNewIcon,
   BugReport as BugReportIcon,
+  Public as PublicIcon,
 } from '@mui/icons-material';
 import { mongoColors } from '@/theme';
 import BugReportFab from './BugReportFab';
@@ -47,6 +48,7 @@ const navItems = [
   { label: 'Advocates', href: '/advocates', icon: <PeopleIcon /> },
   { label: 'Leaderboard', href: '/advocates/leaderboard', icon: <EmojiEventsIcon /> },
   { label: 'Analytics', href: '/analytics', icon: <AnalyticsIcon /> },
+  { label: 'World Map', href: '/world', icon: <PublicIcon /> },
   { divider: true },
   { label: 'Bug Reports', href: '/bugs', icon: <BugReportIcon /> },
   { label: 'PMO Import', href: '/import', icon: <ImportIcon /> },
