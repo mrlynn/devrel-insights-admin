@@ -34,7 +34,10 @@ import {
   AutoAwesome,
   ContentCopy,
   Check,
+  PictureAsPdf,
+  Print,
 } from '@mui/icons-material';
+import jsPDF from 'jspdf';
 import {
   AreaChart,
   Area,
@@ -251,6 +254,153 @@ export default function DashboardPage() {
     }
   };
 
+  const downloadPDF = () => {
+    if (!aiSummary) return;
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
+    let yPos = margin;
+
+    // MongoDB green header bar
+    pdf.setFillColor(0, 237, 100);
+    pdf.rect(0, 0, pageWidth, 25, 'F');
+
+    // Title
+    pdf.setTextColor(0, 30, 43);
+    pdf.setFontSize(20);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('DevRel Insights Executive Summary', margin, 17);
+
+    yPos = 35;
+
+    // Period and date
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(`${aiSummary.period} Report`, margin, yPos);
+    pdf.text(`Generated: ${new Date(aiSummary.generatedAt).toLocaleDateString()}`, pageWidth - margin - 50, yPos);
+    
+    yPos += 10;
+
+    // Stats bar
+    pdf.setFillColor(245, 245, 245);
+    pdf.rect(margin, yPos, contentWidth, 12, 'F');
+    pdf.setFontSize(10);
+    pdf.setTextColor(60, 60, 60);
+    pdf.text(`${aiSummary.stats.total} Insights  •  ${aiSummary.stats.events} Events  •  ${aiSummary.stats.advocates} Advocates`, margin + 5, yPos + 8);
+    
+    yPos += 20;
+
+    // Key Themes
+    if (aiSummary.themes && aiSummary.themes.length > 0) {
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 30, 43);
+      pdf.text('Key Themes', margin, yPos);
+      yPos += 7;
+      
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(80, 80, 80);
+      aiSummary.themes.forEach((theme) => {
+        pdf.text(`• ${theme}`, margin + 5, yPos);
+        yPos += 5;
+      });
+      yPos += 8;
+    }
+
+    // Summary content
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(0, 30, 43);
+    pdf.text('Summary', margin, yPos);
+    yPos += 8;
+
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(40, 40, 40);
+    
+    // Split summary into lines that fit the page width
+    const lines = pdf.splitTextToSize(aiSummary.summary, contentWidth);
+    const lineHeight = 5;
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    
+    lines.forEach((line: string) => {
+      if (yPos > pageHeight - margin) {
+        pdf.addPage();
+        yPos = margin;
+      }
+      pdf.text(line, margin, yPos);
+      yPos += lineHeight;
+    });
+
+    // Footer
+    yPos = pageHeight - 15;
+    pdf.setFontSize(8);
+    pdf.setTextColor(150, 150, 150);
+    pdf.text('MongoDB Developer Relations  •  devrel-insights-admin.vercel.app', margin, yPos);
+
+    // Download
+    const filename = `devrel-insights-${aiSummary.period.toLowerCase().replace(' ', '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
+    pdf.save(filename);
+  };
+
+  const handlePrint = () => {
+    if (!aiSummary) return;
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>DevRel Insights - ${aiSummary.period}</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; color: #001E2B; }
+          .header { background: #00ED64; padding: 20px; margin: -40px -40px 30px -40px; }
+          .header h1 { margin: 0; font-size: 24px; }
+          .meta { color: #666; margin-bottom: 20px; display: flex; justify-content: space-between; }
+          .stats { background: #f5f5f5; padding: 10px 15px; border-radius: 4px; margin-bottom: 20px; }
+          .themes { margin-bottom: 20px; }
+          .themes h3 { font-size: 14px; margin-bottom: 8px; }
+          .theme-chip { display: inline-block; background: #f0e6ff; color: #7C3AED; padding: 4px 12px; border-radius: 16px; margin: 4px 4px 4px 0; font-size: 12px; }
+          .summary { line-height: 1.8; }
+          .summary p { margin-bottom: 16px; }
+          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; color: #999; font-size: 12px; }
+          @media print { .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+        </style>
+      </head>
+      <body>
+        <div class="header"><h1>DevRel Insights Executive Summary</h1></div>
+        <div class="meta">
+          <span>${aiSummary.period} Report</span>
+          <span>Generated: ${new Date(aiSummary.generatedAt).toLocaleDateString()}</span>
+        </div>
+        <div class="stats">
+          <strong>${aiSummary.stats.total}</strong> Insights &nbsp;•&nbsp;
+          <strong>${aiSummary.stats.events}</strong> Events &nbsp;•&nbsp;
+          <strong>${aiSummary.stats.advocates}</strong> Advocates
+        </div>
+        ${aiSummary.themes?.length ? `
+          <div class="themes">
+            <h3>Key Themes</h3>
+            ${aiSummary.themes.map((t) => `<span class="theme-chip">${t}</span>`).join('')}
+          </div>
+        ` : ''}
+        <div class="summary">
+          ${aiSummary.summary.split('\n\n').map((p) => `<p>${p}</p>`).join('')}
+        </div>
+        <div class="footer">MongoDB Developer Relations • devrel-insights-admin.vercel.app</div>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
   useEffect(() => {
     async function loadDashboard() {
       try {
@@ -361,15 +511,23 @@ export default function DashboardPage() {
 
               {/* Summary Text */}
               <Paper sx={{ p: 3, bgcolor: 'background.default', borderRadius: 2, position: 'relative' }}>
-                <MuiTooltip title={copied ? 'Copied!' : 'Copy to clipboard'}>
-                  <IconButton
-                    onClick={copyToClipboard}
-                    size="small"
-                    sx={{ position: 'absolute', top: 8, right: 8 }}
-                  >
-                    {copied ? <Check color="success" /> : <ContentCopy fontSize="small" />}
-                  </IconButton>
-                </MuiTooltip>
+                <Stack direction="row" spacing={0.5} sx={{ position: 'absolute', top: 8, right: 8 }}>
+                  <MuiTooltip title={copied ? 'Copied!' : 'Copy to clipboard'}>
+                    <IconButton onClick={copyToClipboard} size="small">
+                      {copied ? <Check color="success" /> : <ContentCopy fontSize="small" />}
+                    </IconButton>
+                  </MuiTooltip>
+                  <MuiTooltip title="Download PDF">
+                    <IconButton onClick={downloadPDF} size="small">
+                      <PictureAsPdf fontSize="small" />
+                    </IconButton>
+                  </MuiTooltip>
+                  <MuiTooltip title="Print">
+                    <IconButton onClick={handlePrint} size="small">
+                      <Print fontSize="small" />
+                    </IconButton>
+                  </MuiTooltip>
+                </Stack>
                 <Typography
                   variant="body1"
                   sx={{ lineHeight: 1.8, whiteSpace: 'pre-wrap', pr: 4 }}
