@@ -6,15 +6,18 @@ import {
   Typography,
   Card,
   CardContent,
+  CardActions,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  TablePagination,
   Chip,
   Skeleton,
   Stack,
+  Grid,
   FormControl,
   InputLabel,
   Select,
@@ -26,6 +29,10 @@ import {
   Tooltip,
   Snackbar,
   Alert,
+  ToggleButtonGroup,
+  ToggleButton,
+  Avatar,
+  Divider,
 } from '@mui/material';
 import {
   Search,
@@ -35,6 +42,11 @@ import {
   Add,
   Edit,
   Delete,
+  ViewList,
+  ViewModule,
+  Event as EventIcon,
+  Person,
+  CalendarToday,
 } from '@mui/icons-material';
 import InsightFormDialog, { InsightFormData } from '@/components/InsightFormDialog';
 
@@ -85,6 +97,11 @@ export default function InsightsPage() {
     message: '',
     severity: 'success',
   });
+
+  // View and pagination state
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const loadInsights = useCallback(async () => {
     try {
@@ -141,6 +158,30 @@ export default function InsightsPage() {
         return <SentimentNeutral color="action" />;
     }
   };
+
+  const getSentimentColor = (sentiment: string): 'success' | 'error' | 'warning' => {
+    switch (sentiment) {
+      case 'Positive': return 'success';
+      case 'Negative': return 'error';
+      default: return 'warning';
+    }
+  };
+
+  // Pagination handlers
+  const handleChangePage = (_: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  // Paginated data
+  const paginatedInsights = filteredInsights.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
 
   const handleAddNew = () => {
     setEditingInsight(null);
@@ -226,21 +267,35 @@ export default function InsightsPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4, flexWrap: 'wrap', gap: 2 }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>Insights</Typography>
           <Typography color="text.secondary">
-            Developer feedback captured at events ({insights.length} total)
+            Developer feedback captured at events ({filteredInsights.length} of {insights.length})
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={handleAddNew}
-          sx={{ mt: 1 }}
-        >
-          Add Insight
-        </Button>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(_, v) => v && setViewMode(v)}
+            size="small"
+          >
+            <ToggleButton value="table">
+              <Tooltip title="Table View"><ViewList /></Tooltip>
+            </ToggleButton>
+            <ToggleButton value="cards">
+              <Tooltip title="Card View"><ViewModule /></Tooltip>
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={handleAddNew}
+          >
+            Add Insight
+          </Button>
+        </Stack>
       </Box>
 
       {/* Filters */}
@@ -310,9 +365,9 @@ export default function InsightsPage() {
         </CardContent>
       </Card>
 
-      {/* Insights Table */}
-      <Card>
-        {filteredInsights.length === 0 ? (
+      {/* Empty State */}
+      {filteredInsights.length === 0 ? (
+        <Card>
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
             <Typography variant="h6" color="text.secondary" gutterBottom>
               No Insights Yet
@@ -324,7 +379,10 @@ export default function InsightsPage() {
               Add First Insight
             </Button>
           </CardContent>
-        ) : (
+        </Card>
+      ) : viewMode === 'table' ? (
+        /* Table View */
+        <Card>
           <TableContainer>
             <Table>
               <TableHead>
@@ -340,7 +398,7 @@ export default function InsightsPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredInsights.map((insight) => (
+                {paginatedInsights.map((insight) => (
                   <TableRow
                     key={insight._id}
                     hover
@@ -413,8 +471,129 @@ export default function InsightsPage() {
               </TableBody>
             </Table>
           </TableContainer>
-        )}
-      </Card>
+          <TablePagination
+            component="div"
+            count={filteredInsights.length}
+            page={page}
+            onPageChange={handleChangePage}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            rowsPerPageOptions={[10, 25, 50, 100]}
+          />
+        </Card>
+      ) : (
+        /* Card View */
+        <>
+          <Grid container spacing={2}>
+            {paginatedInsights.map((insight) => (
+              <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={insight._id}>
+                <Card
+                  sx={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: 4,
+                    },
+                  }}
+                  onClick={() => handleEdit(insight)}
+                >
+                  <CardContent sx={{ flex: 1 }}>
+                    {/* Header: Sentiment + Type + Priority */}
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                      {getSentimentIcon(insight.sentiment)}
+                      <Chip label={insight.type} size="small" />
+                      <Chip
+                        label={insight.priority}
+                        size="small"
+                        color={priorityColors[insight.priority] || 'default'}
+                      />
+                    </Stack>
+
+                    {/* Text */}
+                    <Typography variant="body2" sx={{ mb: 2, minHeight: 60 }}>
+                      {insight.text.length > 200
+                        ? `${insight.text.substring(0, 200)}...`
+                        : insight.text}
+                    </Typography>
+
+                    {/* Tags */}
+                    {insight.tags.length > 0 && (
+                      <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+                        {insight.tags.slice(0, 4).map((tag) => (
+                          <Chip
+                            key={tag}
+                            label={`#${tag}`}
+                            size="small"
+                            variant="outlined"
+                            sx={{ fontSize: '0.7rem' }}
+                          />
+                        ))}
+                        {insight.tags.length > 4 && (
+                          <Chip label={`+${insight.tags.length - 4}`} size="small" sx={{ fontSize: '0.7rem' }} />
+                        )}
+                      </Stack>
+                    )}
+
+                    <Divider sx={{ my: 1 }} />
+
+                    {/* Meta: Event, Advocate, Date */}
+                    <Stack spacing={0.5}>
+                      {insight.eventName && (
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <EventIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                          <Typography variant="caption" color="text.secondary" noWrap>
+                            {insight.eventName}
+                          </Typography>
+                        </Stack>
+                      )}
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Person sx={{ fontSize: 16, color: 'text.secondary' }} />
+                        <Typography variant="caption" color="text.secondary">
+                          {insight.advocateName}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <CalendarToday sx={{ fontSize: 16, color: 'text.secondary' }} />
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(insight.capturedAt).toLocaleDateString()}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                  </CardContent>
+
+                  <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }} onClick={(e) => e.stopPropagation()}>
+                    <Tooltip title="Edit">
+                      <IconButton size="small" onClick={() => handleEdit(insight)}>
+                        <Edit fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete">
+                      <IconButton size="small" onClick={() => handleDelete(insight)} color="error">
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </CardActions>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+          <Card sx={{ mt: 2 }}>
+            <TablePagination
+              component="div"
+              count={filteredInsights.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[12, 24, 48, 96]}
+            />
+          </Card>
+        </>
+      )}
 
       {/* Add/Edit Dialog */}
       <InsightFormDialog
