@@ -238,7 +238,7 @@ export default function LandingPage() {
             </Typography>
             <Grid container spacing={3}>
               {features.map((feature, index) => (
-                <Grid item xs={12} sm={6} md={4} key={index}>
+                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
                   <Card 
                     sx={{ 
                       height: '100%',
