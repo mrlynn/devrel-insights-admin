@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
+import { getDb } from '@/lib/mongodb';
 
 interface GeoData {
   ip: string;
@@ -59,8 +59,7 @@ export async function POST(request: NextRequest) {
     // Get geo data
     const geo = ip !== 'unknown' ? await getGeoFromIP(ip) : null;
     
-    const client = await clientPromise;
-    const db = client.db('devrel-insights');
+    const db = await getDb();
     
     const ping = {
       userId: body.userId || null,
@@ -122,8 +121,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const hours = parseInt(searchParams.get('hours') || '24', 10);
     
-    const client = await clientPromise;
-    const db = client.db('devrel-insights');
+    const db = await getDb();
     
     const since = new Date(Date.now() - hours * 60 * 60 * 1000);
     
