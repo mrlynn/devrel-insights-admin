@@ -39,7 +39,7 @@ const DRAWER_WIDTH = 260;
 
 const navItems = [
   { label: 'Executive', href: '/executive', icon: <AnalyticsIcon />, highlight: true },
-  { label: 'Dashboard', href: '/', icon: <DashboardIcon /> },
+  { label: 'Dashboard', href: '/dashboard', icon: <DashboardIcon /> },
   { label: 'Events', href: '/events', icon: <EventIcon /> },
   { label: 'Insights', href: '/insights', icon: <InsightIcon /> },
   { label: 'Advocates', href: '/advocates', icon: <PeopleIcon /> },
