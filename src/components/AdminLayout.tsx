@@ -37,6 +37,7 @@ import { mongoColors } from '@/theme';
 const DRAWER_WIDTH = 260;
 
 const navItems = [
+  { label: 'Executive', href: '/executive', icon: <AnalyticsIcon />, highlight: true },
   { label: 'Dashboard', href: '/', icon: <DashboardIcon /> },
   { label: 'Events', href: '/events', icon: <EventIcon /> },
   { label: 'Insights', href: '/insights', icon: <InsightIcon /> },
