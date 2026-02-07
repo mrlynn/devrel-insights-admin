@@ -35,6 +35,7 @@ import {
   BugReport as BugReportIcon,
 } from '@mui/icons-material';
 import { mongoColors } from '@/theme';
+import BugReportFab from './BugReportFab';
 
 const DRAWER_WIDTH = 260;
 
@@ -277,6 +278,9 @@ export default function AdminLayout({ children }: Props) {
       >
         <Box sx={{ p: { xs: 2, md: 3 } }}>{children}</Box>
       </Box>
+
+      {/* Bug Report FAB */}
+      <BugReportFab />
     </Box>
   );
 }
