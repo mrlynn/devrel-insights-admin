@@ -8,20 +8,24 @@ const SECRET = new TextEncoder().encode(
 );
 
 const PUBLIC_PATHS = [
+  '/',              // Landing page
   '/login', 
   '/api/auth',      // All auth routes (magic-link, verify-code)
   '/api/events',    // Mobile app access
   '/api/insights',  // Mobile app access
   '/api/advocates', // Mobile app access
+  '/api/attachments', // Photo uploads
   '/api/health',    // Health check endpoint
   '/api/slack',     // Slack integration
+  '/api/sessions',  // Session management
 ];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public paths
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+  // Exact match for root, startsWith for other paths
+  if (pathname === '/' || PUBLIC_PATHS.some((p) => p !== '/' && pathname.startsWith(p))) {
     return NextResponse.next();
   }
 

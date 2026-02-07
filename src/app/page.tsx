@@ -317,7 +317,7 @@ export default function LandingPage() {
             Built with 💚 by the MongoDB Developer Relations team
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-            © {new Date().getFullYear()} MongoDB, Inc.
+            © 2026 MongoDB, Inc.
           </Typography>
         </Box>
       </Box>
