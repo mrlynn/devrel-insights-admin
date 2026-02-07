@@ -128,15 +128,24 @@ export default function LandingPage() {
           <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>
             📊 DevRel Insights
           </Typography>
-          <Button
-            component={Link}
-            href="/login"
-            variant="outlined"
-            color="primary"
-            startIcon={<LoginIcon />}
-          >
-            Sign In
-          </Button>
+          <Stack direction="row" spacing={2}>
+            <Button
+              component={Link}
+              href="/guide"
+              color="inherit"
+            >
+              Guide
+            </Button>
+            <Button
+              component={Link}
+              href="/login"
+              variant="outlined"
+              color="primary"
+              startIcon={<LoginIcon />}
+            >
+              Sign In
+            </Button>
+          </Stack>
         </Box>
 
         {/* Hero Section */}
@@ -192,15 +201,24 @@ export default function LandingPage() {
               </Button>
               <Button
                 component={Link}
-                href="/login"
+                href="/guide"
                 variant="outlined"
                 size="large"
                 color="primary"
                 sx={{ px: 4, py: 1.5 }}
               >
-                Admin Dashboard
+                Quick Start Guide
               </Button>
             </Stack>
+            <Button
+              component={Link}
+              href="/login"
+              size="small"
+              color="inherit"
+              sx={{ mt: 2, opacity: 0.7 }}
+            >
+              Admin Dashboard →
+            </Button>
           </Box>
 
           {/* App Preview */}
