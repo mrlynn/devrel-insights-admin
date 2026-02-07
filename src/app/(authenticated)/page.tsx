@@ -14,6 +14,13 @@ import {
   Paper,
   alpha,
   useTheme,
+  Button,
+  CircularProgress,
+  ToggleButton,
+  ToggleButtonGroup,
+  Divider,
+  IconButton,
+  Tooltip as MuiTooltip,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -24,6 +31,9 @@ import {
   EmojiEvents,
   Warning,
   Speed,
+  AutoAwesome,
+  ContentCopy,
+  Check,
 } from '@mui/icons-material';
 import {
   AreaChart,
@@ -89,6 +99,18 @@ interface DashboardData {
     criticalItems: Array<{ id: string; text: string; type: string; priority: string; event: string; capturedAt: string }>;
     topAdvocates: Array<{ id: string; name: string; count: number }>;
   };
+}
+
+interface AISummary {
+  summary: string;
+  themes: string[];
+  stats: {
+    total: number;
+    events: number;
+    advocates: number;
+  };
+  period: string;
+  generatedAt: string;
 }
 
 // Metric Card Component
@@ -196,7 +218,38 @@ function stringToColor(str: string): string {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [aiSummary, setAiSummary] = useState<AISummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryPeriod, setSummaryPeriod] = useState<string>('quarter');
+  const [copied, setCopied] = useState(false);
   const theme = useTheme();
+
+  const generateSummary = async () => {
+    setSummaryLoading(true);
+    try {
+      const res = await fetch('/api/insights/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ period: summaryPeriod }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setAiSummary(json);
+      }
+    } catch (err) {
+      console.error('Failed to generate summary:', err);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    if (aiSummary?.summary) {
+      navigator.clipboard.writeText(aiSummary.summary);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   useEffect(() => {
     async function loadDashboard() {
@@ -251,6 +304,104 @@ export default function DashboardPage() {
           Real-time developer insights from conferences and events
         </Typography>
       </Box>
+
+      {/* AI Executive Summary */}
+      <Card sx={{ mb: 4, background: `linear-gradient(135deg, ${alpha(COLORS.purple, 0.1)} 0%, ${alpha(COLORS.secondary, 0.05)} 100%)`, border: `1px solid ${alpha(COLORS.purple, 0.2)}` }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <AutoAwesome sx={{ color: COLORS.purple }} />
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                AI Executive Summary
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <ToggleButtonGroup
+                value={summaryPeriod}
+                exclusive
+                onChange={(_, v) => v && setSummaryPeriod(v)}
+                size="small"
+              >
+                <ToggleButton value="week">Week</ToggleButton>
+                <ToggleButton value="month">Month</ToggleButton>
+                <ToggleButton value="quarter">Quarter</ToggleButton>
+              </ToggleButtonGroup>
+              <Button
+                variant="contained"
+                onClick={generateSummary}
+                disabled={summaryLoading}
+                startIcon={summaryLoading ? <CircularProgress size={18} color="inherit" /> : <AutoAwesome />}
+                sx={{ bgcolor: COLORS.purple, '&:hover': { bgcolor: alpha(COLORS.purple, 0.85) } }}
+              >
+                {summaryLoading ? 'Generating...' : 'Generate Summary'}
+              </Button>
+            </Box>
+          </Box>
+
+          {aiSummary ? (
+            <Box>
+              {/* Themes */}
+              {aiSummary.themes && aiSummary.themes.length > 0 && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Key Themes:
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {aiSummary.themes.map((theme, idx) => (
+                      <Chip
+                        key={idx}
+                        label={theme}
+                        size="small"
+                        sx={{ bgcolor: alpha(COLORS.purple, 0.15), color: COLORS.purple, fontWeight: 500 }}
+                      />
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
+              {/* Summary Text */}
+              <Paper sx={{ p: 3, bgcolor: 'background.default', borderRadius: 2, position: 'relative' }}>
+                <MuiTooltip title={copied ? 'Copied!' : 'Copy to clipboard'}>
+                  <IconButton
+                    onClick={copyToClipboard}
+                    size="small"
+                    sx={{ position: 'absolute', top: 8, right: 8 }}
+                  >
+                    {copied ? <Check color="success" /> : <ContentCopy fontSize="small" />}
+                  </IconButton>
+                </MuiTooltip>
+                <Typography
+                  variant="body1"
+                  sx={{ lineHeight: 1.8, whiteSpace: 'pre-wrap', pr: 4 }}
+                >
+                  {aiSummary.summary}
+                </Typography>
+              </Paper>
+
+              {/* Stats Footer */}
+              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                <Stack direction="row" spacing={2}>
+                  <Typography variant="caption" color="text.secondary">
+                    Based on <strong>{aiSummary.stats.total}</strong> insights from <strong>{aiSummary.stats.events}</strong> events
+                  </Typography>
+                </Stack>
+                <Typography variant="caption" color="text.secondary">
+                  Generated: {new Date(aiSummary.generatedAt).toLocaleString()}
+                </Typography>
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography color="text.secondary">
+                Click "Generate Summary" to create an AI-powered executive brief from your insights data.
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                Perfect for quarterly reviews, stakeholder updates, and CMO reporting.
+              </Typography>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Summary Metrics */}
       <Grid container spacing={3} sx={{ mb: 4 }}>

@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     if (normalizedCode === '123456' && normalizedEmail.endsWith('@mongodb.com')) {
       const jwt = await createToken({
         email: normalizedEmail,
-        name: normalizedEmail.split('@')[0].replace('.', ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        name: normalizedEmail.split('@')[0].replace('.', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
         role: 'advocate',
         isAdmin: normalizedEmail === 'michael.lynn@mongodb.com',
         advocateId: `dev_${normalizedEmail.replace(/[@.]/g, '_')}`,
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         advocate = {
           _id: `dev_${normalizedEmail.replace(/[@.]/g, '_')}`,
           email: normalizedEmail,
-          name: normalizedEmail.split('@')[0].replace('.', ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          name: normalizedEmail.split('@')[0].replace('.', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
           role: 'advocate',
         };
       }
