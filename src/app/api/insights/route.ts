@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const skip = parseInt(searchParams.get('skip') || '0');
     const eventId = searchParams.get('eventId');
+    const sessionId = searchParams.get('sessionId');
     const type = searchParams.get('type');
     const sentiment = searchParams.get('sentiment');
     const priority = searchParams.get('priority');
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
     
     const filter: any = {};
     if (eventId) filter.eventId = eventId;
+    if (sessionId) filter.sessionId = sessionId;
     if (type) filter.type = type;
     if (sentiment) filter.sentiment = sentiment;
     if (priority) filter.priority = priority;
