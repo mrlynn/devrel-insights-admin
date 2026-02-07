@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Try to find existing advocate or create placeholder
-      let advocate = await db.collection('advocates').findOne({ email: normalizedEmail });
+      let advocate: any = await db.collection('advocates').findOne({ email: normalizedEmail });
       if (!advocate) {
         advocate = {
           _id: `dev_${normalizedEmail.replace(/[@.]/g, '_')}`,
